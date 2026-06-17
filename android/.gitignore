@@ -1,0 +1,9 @@
+# Android Studio / Gradle build artifacts and machine-specific files
+.gradle/
+build/
+# local.properties holds your machine's SDK path — never commit it.
+local.properties
+.idea/
+*.iml
+captures/
+.cxx/

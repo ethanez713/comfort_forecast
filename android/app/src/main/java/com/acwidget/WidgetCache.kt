@@ -1,0 +1,108 @@
+package com.acwidget
+
+import android.content.Context
+import org.json.JSONArray
+import org.json.JSONObject
+
+/**
+ * Everything needed to re-draw the widget without touching the network. Persisted
+ * so the widget renders instantly from cache on every load and only hits the
+ * network when the cache is missing or older than [TTL_MS] (15 min).
+ */
+data class Snapshot(
+    val action: Action,
+    val headline: String,
+    val summary: String,
+    val tempF: Double?,
+    val dewPointF: Double?,
+    val aqi: Int?,
+    val nowScore: Double,
+    val confidence: String,
+    val sourcesOk: List<String>,
+    val sourcesTotal: Int,   // sources attempted (ok + failed), for the widget's X/N count
+    val scores: List<Double>,
+    val times: List<String>,
+    val worst: List<Int>,   // per-hour dominant detracting factor (0=temp,1=humid,2=aqi,3=rain; -1=none)
+    val isDay: List<Boolean>,   // per-hour sun-up flag (true sunrise→sunset) for the graph's day/night shading
+    val bestStart: String?,
+    val bestEnd: String?,
+    val note: String,
+    val updatedAtMs: Long,
+)
+
+object WidgetCache {
+
+    const val TTL_MS = 15 * 60 * 1000L
+    private const val PREFS = "ac_widget"
+    private const val KEY = "snapshot"
+
+    fun save(context: Context, s: Snapshot) {
+        val o = JSONObject()
+            .put("action", s.action.name)
+            .put("headline", s.headline)
+            .put("summary", s.summary)
+            .put("tempF", s.tempF ?: JSONObject.NULL)
+            .put("dewPointF", s.dewPointF ?: JSONObject.NULL)
+            .put("aqi", s.aqi ?: JSONObject.NULL)
+            .put("nowScore", s.nowScore)
+            .put("confidence", s.confidence)
+            .put("sourcesOk", JSONArray(s.sourcesOk))
+            .put("sourcesTotal", s.sourcesTotal)
+            .put("scores", JSONArray(s.scores))
+            .put("times", JSONArray(s.times))
+            .put("worst", JSONArray(s.worst))
+            .put("isDay", JSONArray(s.isDay))
+            .put("bestStart", s.bestStart ?: JSONObject.NULL)
+            .put("bestEnd", s.bestEnd ?: JSONObject.NULL)
+            .put("note", s.note)
+            .put("updatedAtMs", s.updatedAtMs)
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putString(KEY, o.toString()).apply()
+    }
+
+    fun load(context: Context): Snapshot? {
+        val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, null)
+            ?: return null
+        return try {
+            val o = JSONObject(raw)
+            fun dbl(k: String) = if (o.isNull(k)) null else o.getDouble(k)
+            fun strList(k: String) = o.getJSONArray(k).let { a -> (0 until a.length()).map { a.getString(it) } }
+            fun dblList(k: String) = o.getJSONArray(k).let { a -> (0 until a.length()).map { a.getDouble(it) } }
+            fun intList(k: String) = o.optJSONArray(k)?.let { a -> (0 until a.length()).map { a.getInt(it) } } ?: emptyList()
+            fun boolList(k: String) = o.optJSONArray(k)?.let { a -> (0 until a.length()).map { a.getBoolean(it) } } ?: emptyList()
+            Snapshot(
+                action = runCatching { Action.valueOf(o.getString("action")) }.getOrDefault(Action.UNKNOWN),
+                headline = o.getString("headline"),
+                summary = o.getString("summary"),
+                tempF = dbl("tempF"),
+                dewPointF = dbl("dewPointF"),
+                aqi = if (o.isNull("aqi")) null else o.getInt("aqi"),
+                nowScore = o.optDouble("nowScore", 0.0),
+                confidence = o.getString("confidence"),
+                sourcesOk = strList("sourcesOk"),
+                sourcesTotal = o.optInt("sourcesTotal", strList("sourcesOk").size),
+                scores = dblList("scores"),
+                times = strList("times"),
+                worst = intList("worst"),
+                isDay = boolList("isDay"),
+                bestStart = if (o.isNull("bestStart")) null else o.getString("bestStart"),
+                bestEnd = if (o.isNull("bestEnd")) null else o.getString("bestEnd"),
+                note = o.optString("note", ""),
+                updatedAtMs = o.getLong("updatedAtMs"),
+            )
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** True when a refresh is due: no cache, or it's older than the TTL. */
+    fun isStale(context: Context): Boolean {
+        val s = load(context) ?: return true
+        return System.currentTimeMillis() - s.updatedAtMs > TTL_MS
+    }
+
+    /** Drop the cache so the next render refetches (e.g. after a settings change). */
+    fun clear(context: Context) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(KEY).apply()
+    }
+}

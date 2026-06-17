@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="AC / Windows settings"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:paddingBottom="14dp" />
+
+        <TextView style="@style/CfgLabel" android:text="Open-window threshold (0–100)" />
+        <EditText
+            android:id="@+id/open_score"
+            style="@style/CfgField"
+            android:inputType="number" />
+        <TextView style="@style/CfgHint"
+            android:text="Open the windows when the Open-Window Score is at or above this (default 60)." />
+
+        <TextView style="@style/CfgHint"
+            android:text="Each factor scores 100% at/below its comfortable value and 0% at/above its cutoff, ramping linearly in between." />
+
+        <TextView style="@style/CfgLabel" android:text="Temperature (°F)" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:baselineAligned="false">
+            <LinearLayout style="@style/CfgRangeCol" android:layout_marginEnd="8dp">
+                <TextView style="@style/CfgSub" android:text="comfortable up to" />
+                <EditText android:id="@+id/temp_ideal" style="@style/CfgField" android:inputType="numberDecimal" />
+            </LinearLayout>
+            <LinearLayout style="@style/CfgRangeCol" android:layout_marginStart="8dp">
+                <TextView style="@style/CfgSub" android:text="cutoff (AC wins)" />
+                <EditText android:id="@+id/max_temp" style="@style/CfgField" android:inputType="numberDecimal" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView style="@style/CfgLabel" android:text="Dew point (°F)" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:baselineAligned="false">
+            <LinearLayout style="@style/CfgRangeCol" android:layout_marginEnd="8dp">
+                <TextView style="@style/CfgSub" android:text="comfortable up to" />
+                <EditText android:id="@+id/dew_ideal" style="@style/CfgField" android:inputType="numberDecimal" />
+            </LinearLayout>
+            <LinearLayout style="@style/CfgRangeCol" android:layout_marginStart="8dp">
+                <TextView style="@style/CfgSub" android:text="muggy cutoff" />
+                <EditText android:id="@+id/dew_max" style="@style/CfgField" android:inputType="numberDecimal" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView style="@style/CfgLabel" android:text="Air quality (AQI)" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:baselineAligned="false">
+            <LinearLayout style="@style/CfgRangeCol" android:layout_marginEnd="8dp">
+                <TextView style="@style/CfgSub" android:text="clean up to" />
+                <EditText android:id="@+id/aqi_ideal" style="@style/CfgField" android:inputType="number" />
+            </LinearLayout>
+            <LinearLayout style="@style/CfgRangeCol" android:layout_marginStart="8dp">
+                <TextView style="@style/CfgSub" android:text="cutoff" />
+                <EditText android:id="@+id/aqi_max" style="@style/CfgField" android:inputType="number" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView style="@style/CfgLabel" android:text="Rain (% chance)" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:baselineAligned="false">
+            <LinearLayout style="@style/CfgRangeCol" android:layout_marginEnd="8dp">
+                <TextView style="@style/CfgSub" android:text="fine up to" />
+                <EditText android:id="@+id/rain_ideal" style="@style/CfgField" android:inputType="number" />
+            </LinearLayout>
+            <LinearLayout style="@style/CfgRangeCol" android:layout_marginStart="8dp">
+                <TextView style="@style/CfgSub" android:text="cutoff" />
+                <EditText android:id="@+id/rain_max" style="@style/CfgField" android:inputType="number" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="14dp"
+            android:layout_marginBottom="14dp"
+            android:background="#33FFFFFF" />
+
+        <TextView style="@style/CfgLabel" android:text="Latitude" />
+        <EditText
+            android:id="@+id/lat"
+            style="@style/CfgField"
+            android:inputType="numberDecimal|numberSigned" />
+
+        <TextView style="@style/CfgLabel" android:text="Longitude" />
+        <EditText
+            android:id="@+id/lon"
+            style="@style/CfgField"
+            android:inputType="numberDecimal|numberSigned" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="14dp"
+            android:layout_marginBottom="14dp"
+            android:background="#33FFFFFF" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Hyperlocal sources (optional)"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:paddingBottom="2dp" />
+        <TextView style="@style/CfgHint"
+            android:text="Paste an API key to add a hyperlocal source to the now-reading consensus. Keys are stored only on this phone and kept across app updates. Leave blank to skip." />
+
+        <TextView style="@style/CfgLabel" android:text="Tomorrow.io key (temp/dew + AQI)" />
+        <TextView android:id="@+id/link_tomorrowio" style="@style/CfgHint"
+            android:text="Get a free key ↗" android:textColor="#FF60A5FA" android:paddingBottom="4dp" />
+        <EditText
+            android:id="@+id/key_tomorrowio"
+            style="@style/CfgField"
+            android:inputType="textNoSuggestions"
+            android:hint="paste key" />
+
+        <TextView style="@style/CfgLabel" android:text="Pirate Weather key (HRRR temp/dew)" />
+        <TextView android:id="@+id/link_pirateweather" style="@style/CfgHint"
+            android:text="Get a free key ↗" android:textColor="#FF60A5FA" android:paddingBottom="4dp" />
+        <EditText
+            android:id="@+id/key_pirateweather"
+            style="@style/CfgField"
+            android:inputType="textNoSuggestions"
+            android:hint="paste key" />
+
+        <TextView style="@style/CfgLabel" android:text="AirNow key (EPA measured AQI)" />
+        <TextView android:id="@+id/link_airnow" style="@style/CfgHint"
+            android:text="Get a free key ↗" android:textColor="#FF60A5FA" android:paddingBottom="4dp" />
+        <EditText
+            android:id="@+id/key_airnow"
+            style="@style/CfgField"
+            android:inputType="textNoSuggestions"
+            android:hint="paste key" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="14dp"
+            android:layout_marginBottom="14dp"
+            android:background="#33FFFFFF" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Source trust weights"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:paddingBottom="2dp" />
+        <TextView style="@style/CfgHint"
+            android:text="The now-reading is a weighted MEDIAN across sources, so one off source can't skew it. Higher = more trusted; 0 = ignore. Default 1." />
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="6dp">
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                android:text="Open-Meteo (model)" android:textColor="#FFFFFFFF" android:textSize="14sp" />
+            <EditText android:id="@+id/weight_openmeteo" android:layout_width="72dp"
+                android:layout_height="wrap_content" android:inputType="numberDecimal" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="4dp">
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                android:text="NWS (measured station)" android:textColor="#FFFFFFFF" android:textSize="14sp" />
+            <EditText android:id="@+id/weight_nws" android:layout_width="72dp"
+                android:layout_height="wrap_content" android:inputType="numberDecimal" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="4dp">
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                android:text="MET Norway (global model)" android:textColor="#FFFFFFFF" android:textSize="14sp" />
+            <EditText android:id="@+id/weight_metno" android:layout_width="72dp"
+                android:layout_height="wrap_content" android:inputType="numberDecimal" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="4dp">
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                android:text="Tomorrow.io (hyperlocal)" android:textColor="#FFFFFFFF" android:textSize="14sp" />
+            <EditText android:id="@+id/weight_tomorrowio" android:layout_width="72dp"
+                android:layout_height="wrap_content" android:inputType="numberDecimal" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="4dp">
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                android:text="Pirate Weather (HRRR)" android:textColor="#FFFFFFFF" android:textSize="14sp" />
+            <EditText android:id="@+id/weight_pirateweather" android:layout_width="72dp"
+                android:layout_height="wrap_content" android:inputType="numberDecimal" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="4dp">
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                android:text="AirNow (measured AQI)" android:textColor="#FFFFFFFF" android:textSize="14sp" />
+            <EditText android:id="@+id/weight_airnow" android:layout_width="72dp"
+                android:layout_height="wrap_content" android:inputType="numberDecimal" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="end"
+            android:paddingTop="18dp">
+
+            <Button
+                android:id="@+id/cancel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Cancel"
+                style="?android:attr/buttonBarButtonStyle" />
+
+            <Button
+                android:id="@+id/save"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Save" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

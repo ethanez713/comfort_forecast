@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Widget settings"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:paddingBottom="14dp" />
+
+        <TextView style="@style/CfgLabel" android:text="Forecast length (hours)" />
+        <EditText
+            android:id="@+id/widget_hours"
+            style="@style/CfgField"
+            android:inputType="number" />
+        <TextView style="@style/CfgHint"
+            android:text="How many hours the widget graph spans (default 36). The graph always stretches to fill the widget's width." />
+
+        <TextView style="@style/CfgLabel" android:text="Background opacity (0–100%)" />
+        <EditText
+            android:id="@+id/widget_opacity"
+            style="@style/CfgField"
+            android:inputType="number" />
+        <TextView style="@style/CfgHint"
+            android:text="0 = fully transparent (wallpaper shows through), 100 = solid." />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="end"
+            android:paddingTop="18dp">
+
+            <Button
+                android:id="@+id/cancel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Cancel"
+                style="?android:attr/buttonBarButtonStyle" />
+
+            <Button
+                android:id="@+id/save"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Save" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

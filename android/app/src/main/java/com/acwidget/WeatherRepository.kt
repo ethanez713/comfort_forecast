@@ -1,0 +1,377 @@
+package com.acwidget
+
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import org.json.JSONArray
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+import kotlin.math.ln
+import kotlin.math.roundToInt
+
+/**
+ * Fetches the weather sources in parallel and merges them — a port of the Python
+ * backend's providers/ + aggregate.py + forecast.py. Each fetch swallows its own
+ * errors and returns ok=false, so one dead source can't take down the others.
+ *
+ * Sources (all free, keyless, simple HTTP GETs, all with forecasting):
+ *   open-meteo — model; supplies AQI + the hourly forecast that drives the score
+ *   nws        — US measured obs + hourly forecast (temperature cross-check)
+ *   metno      — Norwegian MET model; independent global cross-check
+ *
+ * Optional keyed hyperlocal sources (added to the now-consensus only when the user
+ * pastes a key in settings — see [SecretsStore]):
+ *   tomorrowio    — Tomorrow.io hyperlocal model (temp/dew + AQI when available)
+ *   pirateweather — HRRR-based hyperlocal model (temp/dew)
+ *   airnow        — EPA measured AQI from the nearest monitor (authoritative AQI)
+ */
+object WeatherRepository {
+
+    private const val TOLERANCE_F = 8.0
+
+    suspend fun fetch(cfg: AppConfig): WeatherResult = coroutineScope {
+        val hrs = cfg.widgetForecastHours
+        // Current readings (keyless + any keyed hyperlocal sources) + hourly forecast.
+        val readings = currentReadingTasks(cfg)
+        val omH = async(Dispatchers.IO) { fetchOpenMeteoHourly(cfg, hrs) }
+        val nwsH = async(Dispatchers.IO) { fetchNwsHourly(cfg, hrs) }
+
+        val consensus = aggregate(readings.awaitAll(), cfg.sourceWeights)
+        val forecast = ForecastBuilder.build(omH.await(), nwsH.await(), cfg.comfort)
+        WeatherResult(consensus, forecast)
+    }
+
+    /**
+     * The three keyless sources plus any keyed hyperlocal sources the user configured,
+     * each kicked off in parallel. A keyed source is only attempted when its key is set.
+     */
+    private fun CoroutineScope.currentReadingTasks(cfg: AppConfig): List<Deferred<SourceReading>> {
+        val tasks = mutableListOf(
+            async(Dispatchers.IO) { fetchOpenMeteo(cfg) },
+            async(Dispatchers.IO) { fetchNws(cfg) },
+            async(Dispatchers.IO) { fetchMetno(cfg) },
+        )
+        cfg.secrets.tomorrowIo?.let { k -> tasks += async(Dispatchers.IO) { fetchTomorrowIo(cfg, k) } }
+        cfg.secrets.pirateWeather?.let { k -> tasks += async(Dispatchers.IO) { fetchPirateWeather(cfg, k) } }
+        cfg.secrets.airNow?.let { k -> tasks += async(Dispatchers.IO) { fetchAirNow(cfg, k) } }
+        return tasks
+    }
+
+    /**
+     * The full-app fetch: current consensus + a multi-day hourly forecast (default
+     * 14 days) + home/device state. Same keyless sources as [fetch]; the device
+     * source is the no-op MVP stub. Used by the launcher app's Now / 14-Day tabs.
+     */
+    suspend fun fetchAppState(
+        cfg: AppConfig,
+        days: Int = cfg.comfort.appForecastDays,
+        deviceSource: DeviceSource = NoopDeviceSource,
+    ): AppState = coroutineScope {
+        val readingTasks = currentReadingTasks(cfg)
+        val omH = async(Dispatchers.IO) { fetchOpenMeteoHourlyDays(cfg, days) }
+        // NWS hourly tops out ~6.5 days; ask for what it has, ForecastBuilder marks
+        // the rest "degraded". Open-Meteo alone still drives the score.
+        val nwsH = async(Dispatchers.IO) { fetchNwsHourly(cfg, days * 24) }
+        val home = async(Dispatchers.IO) { deviceSource.read(cfg) }
+
+        val readings = readingTasks.awaitAll()
+        val consensus = aggregate(readings, cfg.sourceWeights)
+        val forecast = ForecastBuilder.build(omH.await(), nwsH.await(), cfg.comfort)
+        AppState(consensus, forecast, home.await(), readings)
+    }
+
+    // ---- HTTP helpers (HttpURLConnection + org.json, both built into Android) ----
+
+    private fun httpGet(urlStr: String, userAgent: String, timeoutMs: Int = 15000): String {
+        val conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
+            requestMethod = "GET"
+            setRequestProperty("User-Agent", userAgent)
+            setRequestProperty("Accept", "application/json")
+            connectTimeout = timeoutMs
+            readTimeout = timeoutMs
+        }
+        try {
+            if (conn.responseCode !in 200..299) throw RuntimeException("HTTP ${conn.responseCode}")
+            return conn.inputStream.bufferedReader().use { it.readText() }
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    private fun getJson(urlStr: String, userAgent: String, timeoutMs: Int = 15000): JSONObject =
+        JSONObject(httpGet(urlStr, userAgent, timeoutMs))
+
+    private fun getJsonArray(urlStr: String, userAgent: String, timeoutMs: Int = 15000): JSONArray =
+        JSONArray(httpGet(urlStr, userAgent, timeoutMs))
+
+    private fun JSONObject.dblOrNull(key: String): Double? =
+        if (has(key) && !isNull(key)) optDouble(key) else null
+
+    private fun JSONArray.dblAt(i: Int): Double? =
+        if (i < length() && !isNull(i)) optDouble(i) else null
+
+    // ---- Current-reading providers ----
+
+    private fun fetchOpenMeteo(cfg: AppConfig): SourceReading = try {
+        val base = "https://api.open-meteo.com/v1/forecast?latitude=${cfg.lat}&longitude=${cfg.lon}" +
+            "&current=temperature_2m,relative_humidity_2m,dew_point_2m,apparent_temperature," +
+            "precipitation,weather_code,wind_speed_10m" +
+            "&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=mm" +
+            "&timezone=${cfg.timezone}"
+        val cur = getJson(base, cfg.userAgent).getJSONObject("current")
+        var aqi: Int? = null
+        try {
+            val aqUrl = "https://air-quality-api.open-meteo.com/v1/air-quality" +
+                "?latitude=${cfg.lat}&longitude=${cfg.lon}&current=us_aqi&timezone=${cfg.timezone}"
+            getJson(aqUrl, cfg.userAgent).getJSONObject("current").dblOrNull("us_aqi")?.let {
+                aqi = it.roundToInt()
+            }
+        } catch (_: Exception) { /* AQI optional */ }
+        SourceReading(
+            source = "open-meteo",
+            tempF = cur.dblOrNull("temperature_2m"),
+            humidityPct = cur.dblOrNull("relative_humidity_2m"),
+            dewPointF = cur.dblOrNull("dew_point_2m"),
+            apparentTempF = cur.dblOrNull("apparent_temperature"),
+            precipMm = cur.dblOrNull("precipitation"),
+            windMph = cur.dblOrNull("wind_speed_10m"),
+            aqi = aqi,
+        )
+    } catch (e: Exception) {
+        SourceReading(source = "open-meteo", ok = false, error = e.message)
+    }
+
+    private fun fetchNws(cfg: AppConfig): SourceReading = try {
+        val pts = getJson("https://api.weather.gov/points/${cfg.lat},${cfg.lon}", cfg.userAgent)
+        val stationsUrl = pts.getJSONObject("properties").getString("observationStations")
+        val stations = getJson(stationsUrl, cfg.userAgent).getJSONArray("features")
+        if (stations.length() == 0) throw RuntimeException("no NWS stations near location")
+        val stationId = stations.getJSONObject(0).getJSONObject("properties").getString("stationIdentifier")
+        val obs = getJson(
+            "https://api.weather.gov/stations/$stationId/observations/latest", cfg.userAgent,
+        ).getJSONObject("properties")
+        fun valOf(key: String): Double? =
+            obs.optJSONObject(key)?.let { if (it.isNull("value")) null else it.optDouble("value") }
+        SourceReading(
+            source = "nws",
+            tempF = valOf("temperature")?.let { it * 9 / 5 + 32 },
+            dewPointF = valOf("dewpoint")?.let { it * 9 / 5 + 32 },
+            humidityPct = valOf("relativeHumidity"),
+            windMph = valOf("windSpeed")?.let { it * 0.621371 },
+        )
+    } catch (e: Exception) {
+        SourceReading(source = "nws", ok = false, error = e.message)
+    }
+
+    private fun fetchMetno(cfg: AppConfig): SourceReading = try {
+        val url = "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${cfg.lat}&lon=${cfg.lon}"
+        val ts = getJson(url, cfg.userAgent).getJSONObject("properties").getJSONArray("timeseries")
+        if (ts.length() == 0) throw RuntimeException("met.no empty timeseries")
+        val inst = ts.getJSONObject(0).getJSONObject("data").getJSONObject("instant")
+            .getJSONObject("details")
+        val tempC = inst.dblOrNull("air_temperature")
+        val rh = inst.dblOrNull("relative_humidity")
+        SourceReading(
+            source = "metno",
+            tempF = cToF(tempC),
+            humidityPct = rh,
+            dewPointF = cToF(dewPointC(tempC, rh)),
+            windMph = inst.dblOrNull("wind_speed")?.let { it * 2.236936 },
+        )
+    } catch (e: Exception) {
+        SourceReading(source = "metno", ok = false, error = e.message)
+    }
+
+    // ---- Optional keyed hyperlocal providers (current reading only) ----
+
+    /** Tomorrow.io realtime: hyperlocal model temp/dew/humidity/wind (+ EPA AQI if present). */
+    private fun fetchTomorrowIo(cfg: AppConfig, key: String): SourceReading = try {
+        val url = "https://api.tomorrow.io/v4/weather/realtime?location=${cfg.lat},${cfg.lon}" +
+            "&units=imperial&apikey=$key"
+        val v = getJson(url, cfg.userAgent).getJSONObject("data").getJSONObject("values")
+        SourceReading(
+            source = "tomorrowio",
+            tempF = v.dblOrNull("temperature"),
+            dewPointF = v.dblOrNull("dewPoint"),
+            humidityPct = v.dblOrNull("humidity"),
+            windMph = v.dblOrNull("windSpeed"),
+            aqi = if (v.has("epaIndex") && !v.isNull("epaIndex")) v.optInt("epaIndex") else null,
+        )
+    } catch (e: Exception) {
+        SourceReading(source = "tomorrowio", ok = false, error = e.message)
+    }
+
+    /** Pirate Weather (HRRR-based, hyperlocal): current temp/dew/humidity/wind. */
+    private fun fetchPirateWeather(cfg: AppConfig, key: String): SourceReading = try {
+        val url = "https://api.pirateweather.net/forecast/$key/${cfg.lat},${cfg.lon}" +
+            "?units=us&exclude=minutely,hourly,daily,alerts"
+        val cur = getJson(url, cfg.userAgent).getJSONObject("currently")
+        SourceReading(
+            source = "pirateweather",
+            tempF = cur.dblOrNull("temperature"),
+            dewPointF = cur.dblOrNull("dewPoint"),
+            humidityPct = cur.dblOrNull("humidity")?.let { it * 100 },   // API returns 0–1
+            windMph = cur.dblOrNull("windSpeed"),
+        )
+    } catch (e: Exception) {
+        SourceReading(source = "pirateweather", ok = false, error = e.message)
+    }
+
+    /** AirNow: EPA measured AQI from the nearest monitor (overall = max sub-index). */
+    private fun fetchAirNow(cfg: AppConfig, key: String): SourceReading = try {
+        val url = "https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json" +
+            "&latitude=${cfg.lat}&longitude=${cfg.lon}&distance=50&API_KEY=$key"
+        val arr = getJsonArray(url, cfg.userAgent)
+        var maxAqi: Int? = null
+        for (i in 0 until arr.length()) {
+            val o = arr.getJSONObject(i)
+            val a = if (o.isNull("AQI")) null else o.optInt("AQI", -1).takeIf { it >= 0 }
+            if (a != null && (maxAqi == null || a > maxAqi)) maxAqi = a
+        }
+        if (maxAqi == null) throw RuntimeException("AirNow: no AQI in range")
+        SourceReading(source = "airnow", aqi = maxAqi)
+    } catch (e: Exception) {
+        SourceReading(source = "airnow", ok = false, error = e.message)
+    }
+
+    // ---- Hourly forecast providers (return rows keyed by local ISO time) ----
+
+    // Widget look-ahead: the next `hours` hours (from now).
+    private fun fetchOpenMeteoHourly(cfg: AppConfig, hours: Int): List<Map<String, Any?>> =
+        fetchOpenMeteoHourlyRange(cfg, "forecast_hours=$hours", "forecast_hours=$hours")
+
+    // App look-ahead: the next `days` calendar days. AQI only forecasts ~5 days,
+    // so cap its request there; the missing hours stay null → fAqi is non-blocking.
+    private fun fetchOpenMeteoHourlyDays(cfg: AppConfig, days: Int): List<Map<String, Any?>> =
+        fetchOpenMeteoHourlyRange(cfg, "forecast_days=$days", "forecast_days=${minOf(days, 5)}")
+
+    private fun fetchOpenMeteoHourlyRange(
+        cfg: AppConfig, forecastRange: String, aqiRange: String,
+    ): List<Map<String, Any?>> = try {
+        val url = "https://api.open-meteo.com/v1/forecast?latitude=${cfg.lat}&longitude=${cfg.lon}" +
+            "&hourly=temperature_2m,dew_point_2m,relative_humidity_2m,precipitation_probability," +
+            "precipitation,weather_code,cloud_cover,shortwave_radiation,wind_speed_10m,is_day&$forecastRange" +
+            "&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch" +
+            "&timezone=${cfg.timezone}"
+        val h = getJson(url, cfg.userAgent).getJSONObject("hourly")
+        val times = h.getJSONArray("time")
+        val temp = h.getJSONArray("temperature_2m")
+        val dew = h.getJSONArray("dew_point_2m")
+        val pop = h.optJSONArray("precipitation_probability")
+        val precip = h.optJSONArray("precipitation")
+        val wcode = h.optJSONArray("weather_code")
+        val isDay = h.optJSONArray("is_day")
+        val sw = h.optJSONArray("shortwave_radiation")
+
+        // AQI from the separate air-quality endpoint, merged by timestamp.
+        val aqiByTime = HashMap<String, Int>()
+        try {
+            val aqUrl = "https://air-quality-api.open-meteo.com/v1/air-quality" +
+                "?latitude=${cfg.lat}&longitude=${cfg.lon}&hourly=us_aqi&$aqiRange" +
+                "&timezone=${cfg.timezone}"
+            val ah = getJson(aqUrl, cfg.userAgent).getJSONObject("hourly")
+            val at = ah.getJSONArray("time"); val av = ah.getJSONArray("us_aqi")
+            for (i in 0 until at.length()) av.dblAt(i)?.let { aqiByTime[at.getString(i)] = it.roundToInt() }
+        } catch (_: Exception) { /* AQI optional */ }
+
+        (0 until times.length()).map { i ->
+            val t = times.getString(i)
+            mapOf(
+                "time" to t, "tempF" to temp.dblAt(i), "dewPointF" to dew.dblAt(i),
+                "precipProb" to pop?.dblAt(i), "precipIn" to precip?.dblAt(i),
+                "weatherCode" to wcode?.dblAt(i)?.let { it.roundToInt() },
+                "isDay" to isDay?.dblAt(i)?.let { it >= 0.5 },
+                "shortwaveWm2" to sw?.dblAt(i), "aqi" to aqiByTime[t],
+            )
+        }
+    } catch (e: Exception) {
+        emptyList()
+    }
+
+    private fun fetchNwsHourly(cfg: AppConfig, hours: Int): List<Map<String, Any?>> = try {
+        val pts = getJson("https://api.weather.gov/points/${cfg.lat},${cfg.lon}", cfg.userAgent)
+        val hourlyUrl = pts.getJSONObject("properties").getString("forecastHourly")
+        val periods = getJson(hourlyUrl, cfg.userAgent).getJSONObject("properties").getJSONArray("periods")
+        (0 until minOf(hours, periods.length())).map { i ->
+            val p = periods.getJSONObject(i)
+            var temp = p.dblOrNull("temperature")
+            if (temp != null && p.optString("temperatureUnit") == "C") temp = cToF(temp)
+            val dewC = p.optJSONObject("dewpoint")?.let { if (it.isNull("value")) null else it.optDouble("value") }
+            mapOf(
+                "time" to p.optString("startTime").take(16),
+                "tempF" to temp, "dewPointF" to cToF(dewC),
+            )
+        }
+    } catch (e: Exception) {
+        emptyList()
+    }
+
+    // ---- shared math ----
+
+    private fun cToF(c: Double?): Double? = c?.let { it * 9 / 5 + 32 }
+
+    /** Magnus-formula dew point (°C) from temperature (°C) + RH (%). */
+    private fun dewPointC(tempC: Double?, rh: Double?): Double? {
+        if (tempC == null || rh == null || rh <= 0) return null
+        val a = 17.625; val b = 243.04
+        val gamma = ln(rh / 100.0) + a * tempC / (b + tempC)
+        return b * gamma / (a - gamma)
+    }
+
+    // ---- Aggregation (current consensus) ----
+
+    /**
+     * Merges per-source readings into one consensus using a WEIGHTED MEDIAN per field
+     * (not a mean): the median is robust — a single off source (e.g. a station obs sitting
+     * on sun-baked tarmac) can't drag the result — and per-source weights let the user
+     * favour the sources they trust. Weight 0 drops a source from the consensus entirely.
+     * The temp spread (max−min) is still reported for the confidence flag.
+     */
+    private fun aggregate(readings: List<SourceReading>, weights: Map<String, Double>): Consensus {
+        val ok = readings.filter { it.ok }
+        val failed = readings.filter { !it.ok }.map { "${it.source}: ${it.error ?: "error"}" }
+
+        fun weightOf(r: SourceReading) = (weights[r.source] ?: 1.0).coerceAtLeast(0.0)
+        // Weighted median over the (value, weight) pairs of the sources that supplied a field.
+        fun wmed(sel: (SourceReading) -> Double?): Double? {
+            val pts = ok.mapNotNull { r -> sel(r)?.let { it to weightOf(r) } }
+                .filter { it.second > 0 }
+                .sortedBy { it.first }
+            if (pts.isEmpty()) return null
+            val half = pts.sumOf { it.second } / 2.0
+            var cum = 0.0
+            for ((v, w) in pts) { cum += w; if (cum >= half) return v }
+            return pts.last().first
+        }
+
+        // Spread/confidence consider only sources that still carry weight.
+        val temps = ok.filter { weightOf(it) > 0 }.mapNotNull { it.tempF }
+        val spread = if (temps.size >= 2) temps.max() - temps.min() else 0.0
+        val weighted = ok.filter { weightOf(it) > 0 }
+
+        val confidence = when {
+            weighted.isEmpty() -> "none"
+            weighted.size == 1 -> "degraded"
+            spread > TOLERANCE_F -> "conflict"
+            else -> "high"
+        }
+
+        return Consensus(
+            tempF = wmed { it.tempF },
+            dewPointF = wmed { it.dewPointF },
+            humidityPct = wmed { it.humidityPct },
+            apparentTempF = wmed { it.apparentTempF },
+            precipMm = wmed { it.precipMm },
+            windMph = wmed { it.windMph },
+            aqi = wmed { it.aqi?.toDouble() }?.roundToInt(),
+            confidence = confidence,
+            tempSpreadF = spread,
+            sourcesOk = ok.map { it.source },
+            sourcesFailed = failed,
+        )
+    }
+}

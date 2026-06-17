@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Legacy auto-backup rules (API 26–30). Back up everything EXCEPT the on-device
+     API-keys file — secrets must never sync to cloud backup. See SecretsStore. -->
+<full-backup-content>
+    <exclude domain="file" path="api_keys.properties" />
+</full-backup-content>

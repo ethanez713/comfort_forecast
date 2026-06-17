@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ (API 31+) backup/transfer rules. Everything is backed up EXCEPT the
+     on-device API-keys file: secrets must never leave the device via cloud backup or a
+     device-to-device transfer. See SecretsStore (filesDir/api_keys.properties). -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="api_keys.properties" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="api_keys.properties" />
+    </device-transfer>
+</data-extraction-rules>

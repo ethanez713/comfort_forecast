@@ -1,9 +1,9 @@
-"""Tests for the scored look-ahead (ac_widget/forecast.py)."""
+"""Tests for the scored look-ahead (comfort_forecast/forecast.py)."""
 
 import unittest
 
-from ac_widget.config import Comfort
-from ac_widget.forecast import build_forecast, fmt_hour
+from comfort_forecast.config import Comfort
+from comfort_forecast.forecast import build_forecast, fmt_hour
 
 
 def _h(time, temp, dew=50, aqi=20, pop=0, sw=0):

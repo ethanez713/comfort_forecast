@@ -2,8 +2,8 @@
 
 import unittest
 
-from ac_widget.aggregate import AGREEMENT_TOLERANCE_F, aggregate
-from ac_widget.models import WeatherReading
+from comfort_forecast.aggregate import AGREEMENT_TOLERANCE_F, aggregate
+from comfort_forecast.models import WeatherReading
 
 
 class AggregateTests(unittest.TestCase):

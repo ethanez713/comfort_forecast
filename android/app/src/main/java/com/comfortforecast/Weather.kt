@@ -1,4 +1,4 @@
-package com.acwidget
+package com.comfortforecast
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.size

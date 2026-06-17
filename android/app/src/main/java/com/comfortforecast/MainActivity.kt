@@ -1,4 +1,4 @@
-package com.acwidget
+package com.comfortforecast
 
 import android.app.Application
 import android.content.Intent
@@ -112,7 +112,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { AcWidgetTheme { AppRoot() } }
+        setContent { ComfortForecastTheme { AppRoot() } }
     }
 }
 
@@ -131,7 +131,7 @@ fun AppRoot(vm: AppViewModel = viewModel()) {
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("AC / Windows", fontWeight = FontWeight.Bold) },
+                title = { Text("Comfort Forecast", fontWeight = FontWeight.Bold) },
                 actions = {
                     DetailModeToggle(mode) { mode = it }
                     SettingsButton()
@@ -503,8 +503,15 @@ private fun DaySparkline(
 
         points.forEachIndexed { i, p ->
             val h = (p.score / 100.0).toFloat() * plotH
+            // Open hours are vivid green; closed hours are a desaturated grey tinted by their
+            // dominant detractor (falling back to a flat grey when the breakdown is unknown).
+            val barColor = if (p.score >= threshold) open else {
+                val b = p.breakdown
+                val factor = b?.let { FACTORS.minByOrNull { f -> f.multiplierOf(it) }?.color }
+                if (factor != null) detractorGrey(factor) else closed
+            }
             drawRect(
-                color = if (p.score >= threshold) open else closed,
+                color = barColor,
                 topLeft = Offset(i * bw, plotBot - h),
                 size = Size(bw * 0.7f, h),
             )

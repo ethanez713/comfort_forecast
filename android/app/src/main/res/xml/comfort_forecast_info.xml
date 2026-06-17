@@ -11,10 +11,10 @@
     android:targetCellWidth="4"
     android:targetCellHeight="3"
     android:updatePeriodMillis="0"
-    android:initialLayout="@layout/widget_ac"
-    android:previewLayout="@layout/widget_ac"
+    android:initialLayout="@layout/widget_comfort_forecast"
+    android:previewLayout="@layout/widget_comfort_forecast"
     android:description="@string/widget_description"
-    android:configure="com.acwidget.WidgetSettingsActivity"
+    android:configure="com.comfortforecast.WidgetSettingsActivity"
     android:widgetFeatures="reconfigurable"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen" />

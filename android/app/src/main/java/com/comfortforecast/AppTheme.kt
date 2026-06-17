@@ -1,9 +1,10 @@
-package com.acwidget
+package com.comfortforecast
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 
 // ── Modern dark palette (slate base + emerald accent, Tailwind-ish) ──
 private val Bg = Color(0xFF0E1217)
@@ -25,6 +26,14 @@ val UnknownRed = Color(0xFFF87171)
 // Score-bar colours (open vs. below-threshold).
 val BarOpen = Accent
 val BarClosed = Color(0xFF3A434F)
+
+/**
+ * Colour for a below-threshold ("don't open the windows") score bar: its dominant detractor's
+ * hue pulled hard toward the neutral [BarClosed] grey. The result reads as unmistakably grey at
+ * a glance — clearly NOT the vivid green of an open-window bar — while a faint tint still hints
+ * at *why* the hour is closed. [BarClosed] itself is the fallback when no detractor is known.
+ */
+fun detractorGrey(factor: Color): Color = lerp(BarClosed, factor, 0.28f)
 
 // Extreme-heat flag: any hour at/above this °F is drawn red (sparkline bar + temp line).
 const val HOT_F = 90.0
@@ -61,7 +70,7 @@ private val DarkColors = darkColorScheme(
 
 /** Always-dark, modern theme for the app. */
 @Composable
-fun AcWidgetTheme(content: @Composable () -> Unit) {
+fun ComfortForecastTheme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = DarkColors, content = content)
 }
 

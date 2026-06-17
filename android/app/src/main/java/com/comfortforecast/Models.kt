@@ -1,4 +1,4 @@
-package com.acwidget
+package com.comfortforecast
 
 /**
  * Data containers, mirroring the Python backend's models.py so the two stay

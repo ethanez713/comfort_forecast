@@ -1,4 +1,4 @@
-"""ac_widget — should I open my windows or turn on the AC?
+"""comfort_forecast — should I open my windows or turn on the AC?
 
 A small, dependency-free backend that polls multiple weather sources and
 recommends ventilation (open windows) vs. mechanical cooling (AC), based on a

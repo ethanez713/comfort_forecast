@@ -1,4 +1,4 @@
-package com.acwidget
+package com.comfortforecast
 
 import androidx.compose.ui.graphics.Color
 import kotlin.math.roundToInt

@@ -1,4 +1,4 @@
-package com.acwidget
+package com.comfortforecast
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull

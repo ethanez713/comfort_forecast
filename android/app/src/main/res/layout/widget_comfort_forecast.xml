@@ -19,7 +19,7 @@
         android:textStyle="bold"
         android:maxLines="1"
         android:ellipsize="end"
-        android:text="AC / Windows" />
+        android:text="Comfort Forecast" />
 
     <TextView
         android:id="@+id/readings"

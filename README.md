@@ -1,4 +1,4 @@
-# ac_widget — open the windows, or turn on the AC?
+# Comfort Forecast — open the windows, or turn on the AC?
 
 A small, **dependency-free** Python backend that polls multiple weather sources
 and tells you whether to **open your windows** (free cooling) or **run the AC**,
@@ -24,7 +24,7 @@ The Android home-screen widget — the current call, the readings behind it, and
 Open-Window Score across the next day-and-a-half (tall bars = open up, short = run
 the AC; the dashed line is your open threshold):
 
-![AC / Windows widget](docs/screenshots/widget.png)
+![Comfort Forecast widget](docs/screenshots/widget.png)
 
 The companion app's multi-day forecast — tap a day to expand it into either the raw
 weather values or the per-factor score breakdown:
@@ -41,9 +41,9 @@ there are **zero third-party dependencies**.
 
 ```bash
 cp config.example.toml config.toml     # then edit your location & comfort target
-python -m ac_widget.cli                 # human-readable
-python -m ac_widget.cli --json          # machine-readable (the widget contract)
-python -m ac_widget.cli --lat 40.7 --lon -74.0   # one-off location override
+python -m comfort_forecast.cli                 # human-readable
+python -m comfort_forecast.cli --json          # machine-readable (the widget contract)
+python -m comfort_forecast.cli --lat 40.7 --lon -74.0   # one-off location override
 python -m unittest discover -s tests    # run the test suite (no network)
 ```
 
@@ -220,7 +220,7 @@ still produce a result.** (met.no's WAF occasionally 403s datacenter IPs but is
 fine from home/phone networks.)
 
 Adding a source is one file: write `fetch(location, user_agent, timeout) ->
-WeatherReading` (and optionally `fetch_hourly(...)`) in `ac_widget/providers/`
+WeatherReading` (and optionally `fetch_hourly(...)`) in `comfort_forecast/providers/`
 and register it in `providers/__init__.py`. Good keyless candidates for a 4th:
 **PirateWeather** (free key) or a second Open-Meteo *model* (e.g. `gfs_seamless`
 vs `icon_seamless`) for independent model diversity through one API.
@@ -228,7 +228,7 @@ vs `icon_seamless`) for independent model diversity through one API.
 ## Layout
 
 ```
-ac_widget/
+comfort_forecast/
   config.py        # load + validate config.toml (stdlib tomllib)
   models.py        # WeatherReading, AggregateReading, Recommendation, Forecast (dataclasses)
   http_util.py     # tiny JSON-over-HTTP helper (stdlib urllib)
@@ -278,7 +278,7 @@ This follows a proportionate, personal-project security posture:
 
 ## License
 
-ac_widget is free software, licensed under the **GNU General Public License v3.0**
+Comfort Forecast is free software, licensed under the **GNU General Public License v3.0**
 — see [LICENSE](LICENSE). You may use, study, share, and modify it; derivative
 works must remain open-source under the same license.
 

@@ -1,4 +1,4 @@
-# ac_widget — project instructions
+# comfort_forecast — project instructions
 
 (Inherits the global `~/.claude/CLAUDE.md`; this file only adds project-specific rules.)
 

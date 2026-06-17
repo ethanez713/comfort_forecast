@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Local Android dev loop for the AC/Windows widget.
+# Local Android dev loop for the Comfort Forecast widget.
 #
 # Usage:
 #   ./dev.sh build              # compile-verify + produce app-debug.apk
@@ -7,7 +7,7 @@
 #   ./dev.sh emu-window         # boot with a window via WSLg (needs extra Qt libs, see README)
 #   ./dev.sh install            # build + install onto the running emulator/device
 #   ./dev.sh verify             # trigger a refresh and print the on-device fetch+decision
-#   ./dev.sh shot [file]        # screenshot the emulator (default /tmp/acwidget.png)
+#   ./dev.sh shot [file]        # screenshot the emulator (default /tmp/comfortforecast.png)
 #   ./dev.sh widget             # nudge any placed widget to refresh
 #   ./dev.sh logs               # tail this app's logcat
 #   ./dev.sh run                # emu (if needed) + install + verify  — the full loop
@@ -24,8 +24,8 @@ ENV="$HOME/android-tooling/env.sh"
 source "$ENV"
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PKG="com.acwidget"
-AVD="ac_widget_avd"
+PKG="com.comfortforecast"
+AVD="comfort_forecast_avd"
 APK="$HERE/app/build/outputs/apk/debug/app-debug.apk"
 
 ensure_avd() {
@@ -66,23 +66,23 @@ case "${1:-run}" in
   verify)
     # Trigger RefreshWorker directly (no home-screen widget needed) and read its log line.
     adb logcat -c
-    adb shell am broadcast -a com.acwidget.ACTION_REFRESH -n "$PKG/.AcWidgetProvider" >/dev/null
+    adb shell am broadcast -a com.comfortforecast.ACTION_REFRESH -n "$PKG/.ComfortForecastProvider" >/dev/null
     echo "Fetching on-device (Open-Meteo + NWS)…"
     for _ in $(seq 1 30); do
-      line=$(adb logcat -d -s AcWidget 2>/dev/null | grep -E 'fetch ok=|refresh failed' | tail -1)
+      line=$(adb logcat -d -s ComfortForecast 2>/dev/null | grep -E 'fetch ok=|refresh failed' | tail -1)
       [ -n "${line:-}" ] && { echo "$line"; exit 0; }
       sleep 2
     done
-    echo "No result in 60s — check 'adb logcat -s AcWidget'." ;;
+    echo "No result in 60s — check 'adb logcat -s ComfortForecast'." ;;
   shot)
-    out="${2:-/tmp/acwidget.png}"
+    out="${2:-/tmp/comfortforecast.png}"
     adb exec-out screencap -p > "$out"
     echo "Saved $out" ;;
   widget)
-    adb shell am broadcast -a com.acwidget.ACTION_REFRESH -n "$PKG/.AcWidgetProvider" >/dev/null || true
-    echo "Refresh sent. To place the widget: long-press home → Widgets → 'AC / Windows'." ;;
+    adb shell am broadcast -a com.comfortforecast.ACTION_REFRESH -n "$PKG/.ComfortForecastProvider" >/dev/null || true
+    echo "Refresh sent. To place the widget: long-press home → Widgets → 'Comfort Forecast'." ;;
   logs)
-    adb logcat -s AcWidget ;;
+    adb logcat -s ComfortForecast ;;
   run)
     adb get-state >/dev/null 2>&1 || "$HERE/dev.sh" emu
     "$HERE/dev.sh" install

@@ -1,4 +1,4 @@
-package com.acwidget
+package com.comfortforecast
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred

@@ -1,4 +1,4 @@
-package com.acwidget
+package com.comfortforecast
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -15,7 +15,7 @@ import android.graphics.Paint
  * flag). The best contiguous window is underlined.
  *
  * The bitmap is rendered at the ImageView's true pixel aspect (see
- * AcWidgetProvider) and shown with fitCenter, so text never stretches on resize.
+ * ComfortForecastProvider) and shown with fitCenter, so text never stretches on resize.
  */
 object Graph {
 
@@ -26,6 +26,21 @@ object Graph {
         Color.rgb(0x4A, 0xDE, 0x80),  // air quality
         Color.rgb(0x22, 0xD3, 0xEE),  // rain
     )
+
+    // Neutral grey a below-threshold bar is pulled toward (matches the app's BarClosed), plus the
+    // fraction of the detractor hue kept on top of it. Strongly grey, faintly tinted by "why closed".
+    private val CLOSED_GREY = Color.rgb(0x3A, 0x43, 0x4F)
+    private const val DETRACTOR_TINT = 0.28f
+
+    /** [factor]'s hue pulled hard toward [CLOSED_GREY] — the bar reads grey but hints at its cause. */
+    private fun detractorGrey(factor: Int): Int {
+        fun mix(g: Int, c: Int) = Math.round(g * (1 - DETRACTOR_TINT) + c * DETRACTOR_TINT)
+        return Color.rgb(
+            mix(Color.red(CLOSED_GREY), Color.red(factor)),
+            mix(Color.green(CLOSED_GREY), Color.green(factor)),
+            mix(Color.blue(CLOSED_GREY), Color.blue(factor)),
+        )
+    }
 
     fun render(
         scores: List<Double>,
@@ -104,7 +119,14 @@ object Graph {
             val x = barLeft(i)
             val s = scores[i].coerceIn(0.0, 100.0)
             val bh = (s / 100f).toFloat() * plotH
-            bar.color = if (s >= threshold) Color.rgb(232, 245, 233) else Color.argb(95, 255, 255, 255)
+            // Open hours stay the bright mint; closed hours become a desaturated grey tinted by
+            // their dominant detractor, so it's obvious at a glance which bars aren't "open".
+            bar.color = if (s >= threshold) {
+                Color.rgb(232, 245, 233)
+            } else {
+                val wf = worst.getOrElse(i) { -1 }
+                if (wf in FACTOR_COLORS.indices) detractorGrey(FACTOR_COLORS[wf]) else CLOSED_GREY
+            }
             val r = (2f * sp).coerceAtMost(barW / 2)
             c.drawRoundRect(x, base - bh, x + barW, base, r, r, bar)
             // When the score bottoms out (~0), mark the baseline with the dominant

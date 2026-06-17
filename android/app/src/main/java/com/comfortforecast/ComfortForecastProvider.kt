@@ -1,4 +1,4 @@
-package com.acwidget
+package com.comfortforecast
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
@@ -29,7 +29,7 @@ import kotlin.math.roundToInt
  * the widget's width and tiers the text rows by height, so the same widget works
  * from 2x2 up to a full-width banner.
  */
-class AcWidgetProvider : AppWidgetProvider() {
+class ComfortForecastProvider : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, mgr: AppWidgetManager, ids: IntArray) {
         val stale = WidgetCache.isStale(context)
@@ -59,8 +59,8 @@ class AcWidgetProvider : AppWidgetProvider() {
     }
 
     companion object {
-        const val ACTION_REFRESH = "com.acwidget.ACTION_REFRESH"
-        private const val PERIODIC_WORK = "ac_widget_periodic"
+        const val ACTION_REFRESH = "com.comfortforecast.ACTION_REFRESH"
+        private const val PERIODIC_WORK = "comfort_forecast_periodic"
 
         /** Tapping the widget body opens the full app. */
         private fun appIntent(context: Context): PendingIntent {
@@ -74,7 +74,7 @@ class AcWidgetProvider : AppWidgetProvider() {
 
         /** Tapping the refresh icon broadcasts ACTION_REFRESH (manual refetch, no app open). */
         private fun refreshIntent(context: Context): PendingIntent {
-            val intent = Intent(context, AcWidgetProvider::class.java).setAction(ACTION_REFRESH)
+            val intent = Intent(context, ComfortForecastProvider::class.java).setAction(ACTION_REFRESH)
             return PendingIntent.getBroadcast(
                 context, 1, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
@@ -110,7 +110,7 @@ class AcWidgetProvider : AppWidgetProvider() {
 
         private fun renderAll(context: Context, refreshing: Boolean) {
             val mgr = AppWidgetManager.getInstance(context)
-            mgr.getAppWidgetIds(ComponentName(context, AcWidgetProvider::class.java))
+            mgr.getAppWidgetIds(ComponentName(context, ComfortForecastProvider::class.java))
                 .forEach { drawId(context, mgr, it, refreshing) }
         }
 
@@ -144,7 +144,7 @@ class AcWidgetProvider : AppWidgetProvider() {
         }
 
         private fun loadingView(context: Context): RemoteViews =
-            RemoteViews(context.packageName, R.layout.widget_ac).apply {
+            RemoteViews(context.packageName, R.layout.widget_comfort_forecast).apply {
                 setTextViewText(R.id.headline, "Loading…")
                 setTextViewText(R.id.readings, "")
                 setTextViewText(R.id.sources, "fetching weather…")
@@ -197,7 +197,7 @@ class AcWidgetProvider : AppWidgetProvider() {
             val ivWpx = (ivWdp * density).toInt().coerceIn(120, 1600)
             val ivHpx = (ivHdp * density).toInt().coerceIn(56, 900)
 
-            return RemoteViews(context.packageName, R.layout.widget_ac).apply {
+            return RemoteViews(context.packageName, R.layout.widget_comfort_forecast).apply {
                 setTextViewText(R.id.headline, s.headline)
                 setTextViewText(R.id.readings, readings)
                 setViewVisibility(R.id.readings, if (showReadings) View.VISIBLE else View.GONE)

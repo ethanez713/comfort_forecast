@@ -1,4 +1,4 @@
-package com.acwidget
+package com.comfortforecast
 
 import kotlin.math.roundToInt
 

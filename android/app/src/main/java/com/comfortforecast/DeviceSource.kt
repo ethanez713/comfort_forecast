@@ -1,4 +1,4 @@
-package com.acwidget
+package com.comfortforecast
 
 /**
  * A source of home/device state — the Phase-2 seam for smart-home integration.

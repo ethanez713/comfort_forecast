@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "AcWidget"
+rootProject.name = "ComfortForecast"
 include(":app")

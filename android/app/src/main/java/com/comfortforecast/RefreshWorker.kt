@@ -1,4 +1,4 @@
-package com.acwidget
+package com.comfortforecast
 
 import android.content.Context
 import android.util.Log
@@ -7,7 +7,7 @@ import androidx.work.WorkerParameters
 
 /**
  * Does the actual fetch+decide off the main thread, caches the result, then
- * pushes it to every widget instance. Enqueued by [AcWidgetProvider] on add, on
+ * pushes it to every widget instance. Enqueued by [ComfortForecastProvider] on add, on
  * tap, on cache expiry, and on a periodic schedule.
  */
 class RefreshWorker(appContext: Context, params: WorkerParameters) :
@@ -28,7 +28,7 @@ class RefreshWorker(appContext: Context, params: WorkerParameters) :
         // to clear the "updating…" spinner over the existing data.
         if (con.confidence == "none" && fc.points.isEmpty()) {
             Log.w(TAG, "refresh returned no data; keeping last cached snapshot; failed=${con.sourcesFailed} fcPts=${fc.points.size}")
-            AcWidgetProvider.refreshDone(applicationContext)
+            ComfortForecastProvider.refreshDone(applicationContext)
             Result.retry()
         } else {
             // Per-hour dominant detracting factor (argmin of the four multipliers), so the
@@ -64,7 +64,7 @@ class RefreshWorker(appContext: Context, params: WorkerParameters) :
                 "fetch ok=${con.sourcesOk} failed=${con.sourcesFailed} confidence=${con.confidence} " +
                     "now=${con.tempF} score=$nowScore -> ${rec.action}; best=${fc.bestStart}..${fc.bestEnd}",
             )
-            AcWidgetProvider.render(applicationContext, snapshot)
+            ComfortForecastProvider.render(applicationContext, snapshot)
             if (con.confidence == "none") Result.retry() else Result.success()
         }
     } catch (e: Exception) {
@@ -73,7 +73,7 @@ class RefreshWorker(appContext: Context, params: WorkerParameters) :
     }
 
     companion object {
-        private const val TAG = "AcWidget"
+        private const val TAG = "ComfortForecast"
 
         /**
          * The headline tells you WHEN to open up — the best window's span becomes

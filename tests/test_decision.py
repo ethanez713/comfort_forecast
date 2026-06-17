@@ -2,9 +2,9 @@
 
 import unittest
 
-from ac_widget.config import Comfort
-from ac_widget.decision import aqi_category, decide
-from ac_widget.models import AggregateReading
+from comfort_forecast.config import Comfort
+from comfort_forecast.decision import aqi_category, decide
+from comfort_forecast.models import AggregateReading
 
 
 def reading(**kw) -> AggregateReading:

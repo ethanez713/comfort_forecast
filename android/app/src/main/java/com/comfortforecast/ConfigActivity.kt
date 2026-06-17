@@ -1,4 +1,4 @@
-package com.acwidget
+package com.comfortforecast
 
 import android.app.Activity
 import android.appwidget.AppWidgetManager
@@ -88,7 +88,7 @@ class ConfigActivity : Activity() {
         val lat = field(R.id.lat).text.toString().toDoubleOrNull() ?: cfg.lat
         val lon = field(R.id.lon).text.toString().toDoubleOrNull() ?: cfg.lon
 
-        val ed = getSharedPreferences("ac_widget", MODE_PRIVATE).edit()
+        val ed = getSharedPreferences("comfort_forecast", MODE_PRIVATE).edit()
             .putString("tempIdealF", tempIdeal.toString())
             .putString("maxTempF", maxTemp.toString())
             .putString("openScoreMin", openScore.toString())
@@ -118,7 +118,7 @@ class ConfigActivity : Activity() {
 
         // New comfort/location/keys → cached scores are stale; refetch + redraw.
         WidgetCache.clear(this)
-        AcWidgetProvider.refreshNow(this)
+        ComfortForecastProvider.refreshNow(this)
 
         setResult(RESULT_OK, resultIntent())
         finish()
